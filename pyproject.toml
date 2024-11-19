@@ -1,0 +1,87 @@
+[project]
+name = "ml-project-template"
+version = "0.0.1"
+description = "ML Project Template"
+requires-python = "==3.12"
+readme = {file = "README.md", content-type = "text/markdown"}
+
+[tool.mypy]
+explicit_package_bases = true
+disable_error_code = ["import-untyped"]
+
+[[tool.mypy.overrides]]
+module = "cloudpathlib.*"
+ignore_errors = true
+follow_imports = "skip"
+
+[tool.ruff]
+line-length = 119
+indent-width = 4
+select = ["ALL"]
+ignore = [
+    "ANN002",
+    "ANN003",
+    "ANN101",
+    "ANN102",
+    "ANN401",
+    "D413",
+    "COM812",
+    "D100",
+    "D104",
+    "D107",
+    "D205",
+    "PD901",
+    "D400",
+    "D401",
+    "D415",
+    "FA",
+    "SLF",
+    "INP",
+    "TRY003",
+    "TRY201",
+    "EM",
+    "FBT",
+    "RET",
+    "C406",
+    "E741",
+    "PLR2004",
+    "RUF009",
+    "RUF012",
+    "BLE001",
+    "S603",
+    "S607",
+    "S506",
+    "FIX002",
+    "NPY002",
+    "G004",
+    "S311",
+    "PIE790",
+    "TRY400",
+    "S108",
+    "W191",
+    "E111",
+    "E114",
+    "E117",
+    "D206",
+    "D300",
+    "Q000",
+    "Q001",
+    "Q002",
+    "Q003",
+    "COM812",
+    "COM819",
+    "D203",
+    "D213",
+    "N806",
+    "N803",
+    "TCH001",
+    "E712",
+    "PLR0913"
+]
+
+[tool.ruff.per-file-ignores]
+"**/tests/**/*.py" = [
+    "S101",
+    "ARG",
+    "FBT",
+]
