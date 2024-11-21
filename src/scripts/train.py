@@ -1,6 +1,5 @@
-from src.common.logging.logger import logger
-from src.common.utils.config import run
-from src.runs.base.run import Run
+from loguru import logger
+from lib.utils.run_utils import run, Run
 
 
 def main(cfg: Run) -> None:
@@ -14,6 +13,6 @@ def main(cfg: Run) -> None:
 
 
 if __name__ == "__main__":
-    import src.configs.stores.main  # noqa: F401
+    import src.conf.base_conf  # noqa: F401
 
     run(main)
