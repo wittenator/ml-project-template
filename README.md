@@ -61,6 +61,9 @@ Logging to WandB is optional for running local jobs but mandatory for jobs submi
 
 WandB is enabled by specifying an API key, the project and entity. Rename `example.env` to `.env` file in the root of the repository. Fill in your information.
 
+### Step 5: Build the container
+Build the container using the `rebuild` alias above - if there are any errors try deleting the lock file and repeat.
+
 ## Run
 Run the script with 
 ```bash
@@ -72,13 +75,13 @@ Hydra should automatically generate a `config.yaml` in `./outputs/<date>/<time>/
 To log to WandB, add `cfg/wandb=log`:
 
 ```bash
-./scripts/train.py cfg/wandb=base
+./scripts/train.py cfg/wandb=log
 ```
 
 In order to use WandB in offline mode, add `cfg.wandb.mode=offline`:
 
 ```bash
-./scripts/train.py cfg/wandb=base cfg.wandb.mode=offline
+./scripts/train.py cfg/wandb=log cfg.wandb.mode=offline
 ```
 
 ### Single Job
@@ -137,6 +140,14 @@ if __name__ == "__main__":
     run(train)
 
 ```
+
+## Edit dependencies
+Edit dependencies in the root dir of the repo with the aliases defined above, e.g.:
+```bash
+add-dep wandb
+remove-dep numpy
+```
+After editing dependencies rebuild using the ```rebuild``` alias.
 
 
 ### Legacy version
