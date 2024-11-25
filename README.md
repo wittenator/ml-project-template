@@ -43,11 +43,11 @@ remove-dep='apptainer run --nv container.sif poetry --no-cache remove --lock'
 ```
 
 ### Step 3: Change container path
-In the first line of each script in the ```scripts``` directory, change the first line to the container's absolute path:
+In the first line of each script in the ```scripts``` directory, change file path the first line to the container's absolute path:
 
 ```python
-./scripts/train.py
-#! /usr/bin/env -S apptainer exec /home/maxi/TEMP/ml-project-template/container.sif python  <--- Update this
+./scripts/train.py                  edit this path \/
+#! /usr/bin/env -S apptainer exec /home/maxi/TEMP/ml-project-template/container.sif python 
 
 from loguru import logger
 
@@ -62,7 +62,7 @@ Logging to WandB is optional for running local jobs but mandatory for jobs submi
 WandB is enabled by specifying an API key, the project and entity. Rename `example.env` to `.env` file in the root of the repository. Fill in your information.
 
 ### Step 5: Build the container
-Build the container using the `rebuild` alias above - if there are any errors try deleting the lock file and repeat.
+Build the container using the `rebuild` alias above - if there are any errors try deleting the poetry.lock file and repeat.
 
 ## Run
 Run the script with 
@@ -106,7 +106,7 @@ This will automatically add WandB logging for you. See `src/configs/runs/base.py
 
 ## Edit main function
 
-You can make arbitrary changes to the main function. Hydra-zen will automatically detect all arguments with standard types values as long as you give a default value.
+You can make changes to the main function's signature or rename the function. Hydra-zen will automatically detect all arguments with standard types values as long as you give a default value.
 You can also add config groups and all other hydra-zen functionality.
 
 #### **However, you should not remove or rename the first argument as it is needed to configure sweeps, wandb, etc.** 
@@ -140,6 +140,11 @@ if __name__ == "__main__":
     run(train)
 
 ```
+Of course you can also add more scripts - to work they only need:
+1. The first line (`#! /usr/bin/env -S apptainer exec /home/maxi/TEMP/ml-project-template/container.sif python`)
+2. The `configure_main` decorator over the main function
+3. Running the main function with the `run` function
+
 
 ## Edit dependencies
 Edit dependencies in the root dir of the repo with the aliases defined above, e.g.:
