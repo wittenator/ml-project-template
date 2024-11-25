@@ -1,4 +1,6 @@
-# ML Project Template
+
+### This is a fork of [this](https://github.com/marvinsxtr/ml-project-template) repo. Functionality is similar - a few weird behaviours in edge cases were fixed but most changes are for UX and flavor (see below for details). Check out the repor above to see a similar take on the same problem.
+
 
 This is a template project for ML experimentation using wandb, hydra-zen, submitit on a Slurm cluster using Docker and Apptainer for containerization.
 
@@ -6,14 +8,23 @@ This is a template project for ML experimentation using wandb, hydra-zen, submit
 
 ## Highlights
 
-* Single Conda environment in Docker via [micromamba](https://mamba.readthedocs.io/en/latest/user_guide/micromamba.html)
+* Apptainer containerization using [pip-poetry](https://python-poetry.org) to configure python evironment
 * Logging and visualizations via [Weights and Biases](https://wandb.com)
 * Reproducibility and modular type-checked configs via [hydra-zen](https://github.com/mit-ll-responsible-ai/hydra-zen)
 * Submit Slurm jobs and sweeps directly from Python via [submitit](https://github.com/facebookincubator/submitit)
-* No `.def` or `.sh` files needed for Apptainer/Slurm
+
+
+## Main differences to [main repo](https://github.com/marvinsxtr/ml-project-template)
+
+* No interactive shell in the container - everything is run by using the script itself as an executable
+* Freely change the main function - the addon features' configuration is only added on top of your own config
+* Using poetry as package manager instead of conda - dependencies are stored in the pyproject.toml
+* Using apptainer to be able to update the container directly on the cluster
+
 
 ## Setup
 
+### Step 1: Env Vars
 To be able to run Slurm from within Apptainer, you first have to add the following lines to your `.zshrc`/`.bashrc` file:
 
 ```bash
@@ -21,46 +32,52 @@ export APPTAINER_BIND=/opt/slurm-23.2,/opt/slurm,/etc/slurm,/etc/munge,/var/log/
 export APPTAINERENV_APPEND_PATH=/opt/slurm/bin:/opt/slurm/sbin
 ```
 
-You can then use the given `Dockerfile` to start a shell via 
+### Step 2 (optional): Setup Aliases
+The following aliases for interacting with Apptainer are recommended:
 
 ```bash
-apptainer shell docker://ghcr.io/marvinsxtr/ml-project-template:main
+rebuild='apptainer build --nv container.sif container.def'
+add-dep='apptainer run --nv container.sif poetry --no-cache add --lock'
+remove-dep='apptainer run --nv container.sif poetry --no-cache remove --lock'
 ```
 
-Note: This may take a few minutes on the first run.
+### Step 3: Change container path
+In the first line of each script in the ```scripts``` directory, change the first line to the container's absolute path:
 
-### WandB Logging
+```python
+./scripts/train.py
+#! /usr/bin/env -S apptainer exec /home/maxi/TEMP/ml-project-template/container.sif python  <--- Update this
 
+from loguru import logger
+
+from conf.base_conf import configure_main, BaseConfig
+from lib.utils.run import run
+
+...
+```
+### Step 4: Configure WandB logging
 Logging to WandB is optional for running local jobs but mandatory for jobs submitted to the cluster.
 
-WandB is enabled by specifying an API key, the project and entity in a `.env` file in the root of the repository. You can take the following snippet as a template:
+WandB is enabled by specifying an API key, the project and entity. Rename `example.env` to `.env` file in the root of the repository. Fill in your information.
 
+## Run
+Run the script with 
 ```bash
-WANDB_API_KEY=
-WANDB_ENTITY=
-WANDB_PROJECT=
+./scripts/train.py
 ```
+This will work with any path as long as the script has the first line pointing to the apptainer above. Just note that Hydra will generate the output dir relative to the current working directory, so better be consistent.
+Hydra should automatically generate a `config.yaml` in `./outputs/<date>/<time>/.hydra`. 
 
-### Local
-
-You can run a script locally via
-
-```bash
-python src/runs/base/main.py cfg=base
-```
-
-Hydra should automatically generate a `config.yaml` in the `outputs/<date>/<time>/.hydra` folder which you can use to reproduce the same run later. Using the command line arguments, you can override or switch out parts of this config as you will see in the following sections.
-
-To log to WandB, add `cfg/wandb=base`:
+To log to WandB, add `cfg/wandb=log`:
 
 ```bash
-python src/runs/base/main.py cfg=base cfg/wandb=base
+./scripts/train.py cfg/wandb=base
 ```
 
 In order to use WandB in offline mode, add `cfg.wandb.mode=offline`:
 
 ```bash
-python src/runs/base/main.py cfg=base cfg/wandb=base cfg.wandb.mode=offline
+./scripts/train.py cfg/wandb=base cfg.wandb.mode=offline
 ```
 
 ### Single Job
@@ -68,7 +85,7 @@ python src/runs/base/main.py cfg=base cfg/wandb=base cfg.wandb.mode=offline
 To run the command as a job in the cluster, run
 
 ```bash
-python src/runs/base/main.py cfg=base cfg/job=base
+./scripts/train.py cfg/job=run
 ```
 
 This will automatically add WandB logging for you. See `src/configs/runs/base.py` to configure the job to your needs.
@@ -78,27 +95,49 @@ This will automatically add WandB logging for you. See `src/configs/runs/base.py
 Run a sweep over two seeds using multiple nodes:
 
 ```bash
-python src/runs/base/main.py cfg=base cfg/job=sweep
+./scripts/train.py cfg/job=sweep
 ```
 
 This will automatically add WandB logging for you. See `src/configs/runs/base.py` to configure the sweep to your needs.
 
-## Docker Image
+## Edit main function
 
-The Docker image can be built for `linux/amd64` by running
+You can make arbitrary changes to the main function. Hydra-zen will automatically detect all arguments with standard types values as long as you give a default value.
+You can also add config groups and all other hydra-zen functionality.
 
-```bash
-docker buildx build -t ml-project-template .
+#### **However, you should not remove or rename the first argument as it is needed to configure sweeps, wandb, etc.** 
+
+(You can if you know the code well, but be warned! Be careful making changes to this - in a very unlucky case changing BaseConfigs structure can lead to recursive runs on your infratructure!)
+
+
+```python
+#! /usr/bin/env -S apptainer exec /home/maxi/TEMP/ml-project-template/container.sif python
+
+from loguru import logger
+
+from conf.base_conf import configure_main, BaseConfig
+from lib.utils.run import run
+
+
+@configure_main
+def train(
+    cfg: BaseConfig,  # you must keep this argument <----
+    bar: int = 42,
+    foo: str = "hello",
+    jup: bool = False,
+    test: float = 2.2,
+) -> None:
+    logger.info("Running main function.")
+    logger.info(f"Config: bar={bar}, foo={foo}, jup={jup}")
+    logger.info(f"BaseConfig: {cfg}")
+
+
+if __name__ == "__main__":
+    run(train)
+
 ```
 
-When using VSCode, the Docker image is automatically built when using a Dev Container.
 
-In order to update the dependencies of the image, install them inside the container and run
-
-```bash
-micromamba env export > environment.yaml
-```
-
-## Acknowledgements
+### Legacy version
 
 This template is based on a [previous example project](https://github.com/mx-e/example_project_ml_cluster).
