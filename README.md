@@ -1,5 +1,5 @@
 
-### This is a fork of [this](https://github.com/marvinsxtr/ml-project-template) repo. Functionality is similar - a few weird behaviours in edge cases were fixed but most changes are for UX and flavor (see below for details). Check out the repor above to see a similar take on the same problem.
+### This is a fork of [this](https://github.com/marvinsxtr/ml-project-template) repo. Functionality is similar - a few weird behaviours in edge cases were fixed but most changes are for UX and flavor (see below for details). Check out the repo above to see a similar (possibly better) take on the same problem.
 
 
 This is a template project for ML experimentation using wandb, hydra-zen, submitit on a Slurm cluster using Docker and Apptainer for containerization.
@@ -16,10 +16,11 @@ This is a template project for ML experimentation using wandb, hydra-zen, submit
 
 ## Main differences to [main repo](https://github.com/marvinsxtr/ml-project-template)
 
-* No interactive shell in the container - everything is run by using the script itself as an executable
+* No interactive shell in the container needed - everything is run by using the script itself as an executable
 * Freely change the main function - the addon features' configuration is only added on top of your own config
 * Using poetry as package manager instead of conda - dependencies are stored in the pyproject.toml
 * Using apptainer to be able to update the container directly on the cluster
+* Simplified structure - managed to get rid of some code by using built-in Hydra functionality
 
 
 ## Setup
