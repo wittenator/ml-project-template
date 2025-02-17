@@ -3,25 +3,40 @@ import sys
 import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal
-import yaml
+from typing import Any, Literal, Union
 
+import yaml
+from lib.utils.helpers import get_hydra_output_dir
+from lib.utils.wandb import WandBConfig
 from loguru import logger
 from submitit import AutoExecutor
 from submitit.helpers import CommandFunction
+from omegaconf import OmegaConf
 
-from lib.utils.wandb import WandBConfig
-from lib.utils.helpers import get_hydra_output_dir
+
+partition_name_to_time_limit_hrs = {
+    "cpu-2h": 2,
+    "cpu-5h": 5,
+    "cpu-2d": 48,
+    "cpu-7d": 168,
+    "gpu-2h": 2,
+    "gpu-5h": 5,
+    "gpu-2d": 48,
+    "gpu-7d": 168,
+}
+
+MINS_IN_H = 60
 
 
 @dataclass
 class SlurmConfig:
     """SLURM resource configuration."""
 
-    cpus_per_task: int | None = None
+    partition: str = "gpu-2h"
+    cpus_per_task: int | None = 3
     gpus_per_task: int | None = None
     memory_gb: int | None = None
-    excluded_nodes: list[str] = field(default_factory=list)
+    exclude: str | None = None
     constraint: str | None = None
     time_hours: int | None = None
     nodes: int | None = None
@@ -30,21 +45,21 @@ class SlurmConfig:
     def to_submitit_params(self) -> dict:
         """Convert to submitit parameters."""
         params = {}
+        if self.partition:
+            params["slurm_partition"] = self.partition
+            params["timeout_min"] = partition_name_to_time_limit_hrs[self.partition] * MINS_IN_H
 
         if self.cpus_per_task:
             params["cpus_per_task"] = self.cpus_per_task
 
         if self.gpus_per_task:
-            params["gpus_per_task"] = self.gpus_per_task
+            params["slurm_gpus_per_task"] = self.gpus_per_task
 
         if self.memory_gb:
             params["mem_gb"] = self.memory_gb
 
-        if self.excluded_nodes:
-            params["exclude"] = ",".join(self.excluded_nodes)
-
-        if self.constraint:
-            params["constraint"] = self.constraint
+        if self.exclude:
+            params["slurm_exclude"] = self.exclude
 
         if self.time_hours:
             params["time"] = f"{self.time_hours}:00:00"
@@ -55,6 +70,9 @@ class SlurmConfig:
         if self.tasks_per_node:
             params["tasks_per_node"] = self.tasks_per_node
 
+        if self.constraint:
+            params["slurm_constraint"] = self.constraint
+
         return params
 
 
@@ -63,12 +81,11 @@ class Job:
     """Job to run code on a cluster using apptainer."""
 
     image: str
-    partition: str
-    cluster: str
+    cluster: str = "slurm"
     slurm_config: SlurmConfig = field(default_factory=SlurmConfig)
     kwargs: dict = field(default_factory=dict)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self.run()
         sys.exit(0)
 
@@ -81,12 +98,12 @@ class Job:
 
     def filter_args(self, args: list[str]) -> list[str]:
         """Filter args to prevent recursive jobs on the cluster."""
-        return [arg for arg in args if f"cfg/job" not in arg]
+        return [arg for arg in args if "cfg/job" not in arg]
 
     @property
     def python_command(self) -> str:
         """Python command used by the job."""
-        return f"apptainer exec {self.image} python"
+        return f"apptainer exec --nv {self.image} uv run python"
 
     def run(self) -> None:
         """Run the job on the cluster."""
@@ -103,10 +120,8 @@ class Job:
             cluster=self.cluster,
             slurm_python=self.python_command,
         )
-
         # Combine base kwargs with SLURM config
         all_params = {
-            "slurm_partition": self.partition,
             **self.slurm_config.to_submitit_params(),
             **self.kwargs,
         }
@@ -120,10 +135,12 @@ class Job:
 class SweepJob(Job):
     """Job to run a sweep on a cluster."""
 
+    sweep_id: str = "no_sweep_id"  # for collection of results
     num_workers: int = 2
-    parameters: dict[str, list[Any]] = field(default_factory=dict)
+    parameters: dict[str, Union[list[Any], dict[Any]]] = field(default_factory=dict)
     metric_name: str = "loss"
     metric_goal: Literal["maximize", "minimize"] = "minimize"
+    method: Literal["grid", "random", "bayes"] = "grid"
 
     def register_sweep(self, sweep_config: dict) -> str:
         """Register a wandb sweep from a config."""
@@ -135,19 +152,24 @@ class SweepJob(Job):
 
             with Path.open(config_path, "w") as config_file:
                 yaml.dump(sweep_config, config_file)
+                print(sweep_config)
 
-            output = subprocess.run(
-                [
-                    "wandb",
-                    "sweep",
-                    "--project",
-                    wandb_config.WANDB_PROJECT,
-                    str(config_path),
-                ],
-                check=True,
-                text=True,
-                capture_output=True,
-            ).stderr
+            try:
+                output = subprocess.run(
+                    [
+                        "wandb",
+                        "sweep",
+                        "--project",
+                        wandb_config.WANDB_PROJECT,
+                        str(config_path),
+                    ],
+                    check=True,
+                    text=True,
+                    capture_output=True,
+                ).stderr
+            except subprocess.CalledProcessError as e:
+                logger.error(e.stderr)
+                raise
 
             sweep_id = output.split(" ")[-1].strip()
 
@@ -158,15 +180,9 @@ class SweepJob(Job):
 
     def run(self) -> None:
         """Run the sweep on the cluster."""
-        parameters = {
-            cfg_key: {"values": list(values)}
-            for cfg_key, values in self.parameters.items()
-        }
+        parameters = OmegaConf.to_container(self.parameters, resolve=True)
         metric = {"goal": self.metric_goal, "name": self.metric_name}
-        print(sys.argv)
-        program, args = self.get_absolute_program_path(sys.argv[0]), self.filter_args(
-            sys.argv[1:]
-        )
+        program, args = self.get_absolute_program_path(sys.argv[0]), self.filter_args(sys.argv[1:])
         command = [
             "${env}",
             "${interpreter}",
@@ -178,7 +194,7 @@ class SweepJob(Job):
 
         sweep_config = {
             "program": program,
-            "method": "grid",
+            "method": self.method,
             "metric": metric,
             "parameters": parameters,
             "command": command,
