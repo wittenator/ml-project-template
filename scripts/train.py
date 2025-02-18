@@ -5,7 +5,7 @@ from conf.base_conf import BaseConfig, configure_main
 from lib.utils.run import run
 from loguru import logger
 from hydra_zen import store
-from hydra.conf import HydraConf, SweepDir, RunDir
+from hydra.conf import HydraConf, RunDir
 
 from scripts.lib.utils.log import log_dict
 
