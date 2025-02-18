@@ -1,10 +1,10 @@
-#! /usr/bin/env -S apptainer exec container.sif uv run python
+#! /usr/bin/env -S apptainer exec $GIT_DIR/container.sif uv run python
 
-from loguru import logger
 import wandb
-
-from conf.base_conf import configure_main, BaseConfig
+from conf.base_conf import BaseConfig, configure_main
 from lib.utils.run import run
+from loguru import logger
+
 from scripts.lib.utils.log import log_dict
 
 
@@ -18,7 +18,6 @@ def train(
     test: float = 2.2,
 ) -> None:
     try:
-
         logger.info("Running main function.")
         logger.info(f"Config: bar={bar}, foo={foo}, jup={jup}")
         logger.info(f"BaseConfig: {cfg}")
@@ -30,6 +29,7 @@ def train(
     finally:
         if cfg.wandb:
             wandb.finish()
+
 
 if __name__ == "__main__":
     run(train)

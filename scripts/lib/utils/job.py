@@ -3,16 +3,15 @@ import sys
 import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal, Union
+from typing import Any, Literal
 
 import yaml
 from lib.utils.helpers import get_hydra_output_dir
 from lib.utils.wandb import WandBConfig
 from loguru import logger
+from omegaconf import OmegaConf
 from submitit import AutoExecutor
 from submitit.helpers import CommandFunction
-from omegaconf import OmegaConf
-
 
 partition_name_to_time_limit_hrs = {
     "cpu-2h": 2,
@@ -137,7 +136,7 @@ class SweepJob(Job):
 
     sweep_id: str = "no_sweep_id"  # for collection of results
     num_workers: int = 2
-    parameters: dict[str, Union[list[Any], dict[Any]]] = field(default_factory=dict)
+    parameters: dict[str, list[Any] | dict[Any]] = field(default_factory=dict)
     metric_name: str = "loss"
     metric_goal: Literal["maximize", "minimize"] = "minimize"
     method: Literal["grid", "random", "bayes"] = "grid"
@@ -152,7 +151,6 @@ class SweepJob(Job):
 
             with Path.open(config_path, "w") as config_file:
                 yaml.dump(sweep_config, config_file)
-                print(sweep_config)
 
             try:
                 output = subprocess.run(

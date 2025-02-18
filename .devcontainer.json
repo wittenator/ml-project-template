@@ -1,5 +1,5 @@
 {
-    "dockerFile": "docker/Dockerfile",
+    "dockerFile": "Dockerfile",
 	"workspaceFolder": "/repo",
     "workspaceMount": "source=${localWorkspaceFolder},target=/repo,type=bind",
     "customizations": {
@@ -12,7 +12,13 @@
                 "charliermarsh.ruff",
                 "tamasfe.even-better-toml",
                 "ms-azuretools.vscode-docker",
-                "ms-toolsai.jupyter"
+                "ms-toolsai.jupyter",
+                "kevinrose.vsc-python-indent",
+                "mosapride.zenkaku",
+                "njpwerner.autodocstring",
+                "redhat.vscode-yaml",
+                "shardulm94.trailing-spaces",
+                "yzhang.markdown-all-in-one"
             ],
             "settings": {
                 "[python]": {
@@ -21,8 +27,15 @@
                     "editor.codeActionsOnSave": {
                         "source.organizeImports": "explicit"
                     }
-                }
+                },
+            "terminal.integrated.defaultProfile.linux": "bash",
+            "terminal.integrated.profiles.linux": { "bash": { "path": "/bin/bash" } }
             }
         }
+    },
+    "postCreateCommand": "uv sync --frozen",
+    "postStartCommand": "uv run pre-commit install",
+    "remoteEnv": {
+        "PYTHONPATH": "${containerEnv:PYTHONPATH}:/repo"
     }
 }
