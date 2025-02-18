@@ -1,9 +1,11 @@
-#! /usr/bin/env -S apptainer exec ${GIT_DIR}/container.sif uv run python
+#! /usr/bin/env -S apptainer exec container.sif uv run python
 
 import wandb
 from conf.base_conf import BaseConfig, configure_main
 from lib.utils.run import run
 from loguru import logger
+from hydra_zen import store
+from hydra.conf import HydraConf, SweepDir, RunDir
 
 from scripts.lib.utils.log import log_dict
 
@@ -32,4 +34,8 @@ def train(
 
 
 if __name__ == "__main__":
+    store(HydraConf(
+        run=RunDir(dir="./outputs/${now:%Y-%m-%d}/${now:%H-%M-%S-%f}")
+    ))
+    store.add_to_hydra_store()
     run(train)

@@ -49,19 +49,16 @@ BaseJobConfig = builds(
 
 BaseSweepConfig = builds(
     SweepJob,
-    num_workers=1,
+    num_workers=2,
     sweep_id="new_md17_exp",
     metric_name="loss",
     parameters={
         "bar": 
         {
-            'distribution': 'q_log_uniform_values',
-            'q': 8,
-            'min': 32,
-            'max': 256,
+            'values': [42, 43, 44]
         }
     },
-    method="bayes",
+    method="grid",
     builds_bases=(BaseJobConfig,),
 )
 

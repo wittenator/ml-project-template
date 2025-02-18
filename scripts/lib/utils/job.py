@@ -1,3 +1,4 @@
+import os
 import shutil
 import subprocess
 import sys
@@ -108,20 +109,14 @@ class Job:
     def run(self) -> None:
         """Run the job on the cluster."""
         # copy source code to output directory
-        shutil.copytree(
-            Path.cwd(),
-            get_hydra_output_dir(),
-            ignore=shutil.ignore_patterns("__pycache__", "*.pyc", ".git", ".venv", "*_cache"),
-        )
-
+        exec_env = self.copy_project_files()
         command = [
-            f"PYTHONPATH={get_hydra_output_dir()}:$PYTHONPATH",
             "python",
-            self.get_absolute_program_path(get_hydra_output_dir + sys.argv[0]),
+            self.get_absolute_program_path(get_hydra_output_dir() / sys.argv[0]),
             *self.filter_args(sys.argv[1:]),
             "cfg/wandb=log",
         ]
-        function = CommandFunction(command)
+        function = CommandFunction(command, env=exec_env)
 
         executor = AutoExecutor(
             folder=get_hydra_output_dir(),
@@ -137,6 +132,22 @@ class Job:
         executor.update_parameters(**all_params)
         job = executor.submit(function)
         logger.info(f"Submitted job {job.job_id}")
+
+    def copy_project_files(self):
+        shutil.copytree(
+            Path.cwd(),
+            get_hydra_output_dir(),
+            ignore=shutil.ignore_patterns("__pycache__", "*.pyc", ".git", ".venv", "*_cache", "*.sif", "*.def", "outputs", "wandb"),
+            dirs_exist_ok=True,
+        )
+
+        if (wandb_config := WandBConfig.from_env()) is None:
+            raise RuntimeError("No WandB config found in environment.")
+        exec_env = os.environ.copy()
+        exec_env["PYTHONPATH"] = f"{get_hydra_output_dir()}:{exec_env["PYTHONPATH"]}"
+        exec_env["WANDB_PROJECT"] = wandb_config.WANDB_PROJECT
+        exec_env["WANDB_ENTITY"] = wandb_config.WANDB_ENTITY
+        return exec_env
 
 
 @dataclass
@@ -187,9 +198,10 @@ class SweepJob(Job):
 
     def run(self) -> None:
         """Run the sweep on the cluster."""
+        exec_env = self.copy_project_files()
         parameters = OmegaConf.to_container(self.parameters, resolve=True)
         metric = {"goal": self.metric_goal, "name": self.metric_name}
-        program, args = self.get_absolute_program_path(sys.argv[0]), self.filter_args(sys.argv[1:])
+        program, args = self.get_absolute_program_path(get_hydra_output_dir() / sys.argv[0]), self.filter_args(sys.argv[1:])
         command = [
             "${env}",
             "${interpreter}",
@@ -208,8 +220,7 @@ class SweepJob(Job):
         }
 
         sweep_id = self.register_sweep(sweep_config)
-
-        function = CommandFunction(["wandb", "agent"])
+        function = CommandFunction(["wandb", "agent"], env=exec_env)
         executor = AutoExecutor(
             folder=get_hydra_output_dir(),
             cluster=self.cluster,
