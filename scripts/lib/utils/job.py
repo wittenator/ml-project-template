@@ -133,18 +133,20 @@ class Job:
         job = executor.submit(function)
         logger.info(f"Submitted job {job.job_id}")
 
-    def copy_project_files(self):
+    def copy_project_files(self) -> dict[str, str]:
         shutil.copytree(
             Path.cwd(),
             get_hydra_output_dir(),
-            ignore=shutil.ignore_patterns("__pycache__", "*.pyc", ".git", ".venv", "*_cache", "*.sif", "*.def", "outputs", "wandb"),
+            ignore=shutil.ignore_patterns(
+                "__pycache__", "*.pyc", ".git", ".venv", "*_cache", "*.sif", "*.def", "outputs", "wandb"
+            ),
             dirs_exist_ok=True,
         )
 
         if (wandb_config := WandBConfig.from_env()) is None:
             raise RuntimeError("No WandB config found in environment.")
         exec_env = os.environ.copy()
-        exec_env["PYTHONPATH"] = f"{get_hydra_output_dir()}:{exec_env["PYTHONPATH"]}"
+        exec_env["PYTHONPATH"] = f"{get_hydra_output_dir()}:{exec_env['PYTHONPATH']}"
         exec_env["WANDB_PROJECT"] = wandb_config.WANDB_PROJECT
         exec_env["WANDB_ENTITY"] = wandb_config.WANDB_ENTITY
         return exec_env
@@ -201,7 +203,10 @@ class SweepJob(Job):
         exec_env = self.copy_project_files()
         parameters = OmegaConf.to_container(self.parameters, resolve=True)
         metric = {"goal": self.metric_goal, "name": self.metric_name}
-        program, args = self.get_absolute_program_path(get_hydra_output_dir() / sys.argv[0]), self.filter_args(sys.argv[1:])
+        program, args = (
+            self.get_absolute_program_path(get_hydra_output_dir() / sys.argv[0]),
+            self.filter_args(sys.argv[1:]),
+        )
         command = [
             "${env}",
             "${interpreter}",

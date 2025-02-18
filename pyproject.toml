@@ -6,7 +6,6 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "hydra-zen>=0.13.0",
-    "jax[cuda12]>=0.5.0",
     "loguru>=0.7.3",
     "python-dotenv>=1.0.1",
     "submitit>=1.5.2",
