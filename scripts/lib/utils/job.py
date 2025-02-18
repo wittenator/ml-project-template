@@ -1,3 +1,4 @@
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -102,13 +103,21 @@ class Job:
     @property
     def python_command(self) -> str:
         """Python command used by the job."""
-        return f"apptainer exec --nv {self.image} uv run python"
+        return f"apptainer exec --nv ${{GIT_DIR}}/{self.image} uv run python"
 
     def run(self) -> None:
         """Run the job on the cluster."""
+        # copy source code to output directory
+        shutil.copytree(
+            Path.cwd(),
+            get_hydra_output_dir(),
+            ignore=shutil.ignore_patterns("__pycache__", "*.pyc", ".git", ".venv", "*_cache"),
+        )
+
         command = [
+            f"PYTHONPATH={get_hydra_output_dir()}:$PYTHONPATH",
             "python",
-            self.get_absolute_program_path(sys.argv[0]),
+            self.get_absolute_program_path(get_hydra_output_dir + sys.argv[0]),
             *self.filter_args(sys.argv[1:]),
             "cfg/wandb=log",
         ]

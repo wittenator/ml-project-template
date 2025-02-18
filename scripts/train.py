@@ -1,4 +1,4 @@
-#! /usr/bin/env -S apptainer exec $GIT_DIR/container.sif uv run python
+#! /usr/bin/env -S apptainer exec ${GIT_DIR}/container.sif uv run python
 
 import wandb
 from conf.base_conf import BaseConfig, configure_main
