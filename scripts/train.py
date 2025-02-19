@@ -1,10 +1,12 @@
 #! /usr/bin/env -S apptainer exec container.sif uv run python
 
-from loguru import logger
 import wandb
-
-from conf.base_conf import configure_main, BaseConfig
+from conf.base_conf import BaseConfig, configure_main
 from lib.utils.run import run
+from loguru import logger
+from hydra_zen import store
+from hydra.conf import HydraConf, RunDir
+
 from scripts.lib.utils.log import log_dict
 
 
@@ -18,7 +20,6 @@ def train(
     test: float = 2.2,
 ) -> None:
     try:
-
         logger.info("Running main function.")
         logger.info(f"Config: bar={bar}, foo={foo}, jup={jup}")
         logger.info(f"BaseConfig: {cfg}")
@@ -31,5 +32,10 @@ def train(
         if cfg.wandb:
             wandb.finish()
 
+
 if __name__ == "__main__":
+    store(HydraConf(
+        run=RunDir(dir="./outputs/${now:%Y-%m-%d}/${now:%H-%M-%S-%f}")
+    ))
+    store.add_to_hydra_store()
     run(train)

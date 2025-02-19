@@ -19,6 +19,7 @@ From: mx8e/cluster_python:3.12
 %environment
     export DEBIAN_FRONTEND=noninteractive
     export PYTHONPATH=./src:$PYTHONPATH
+    export UV_LINK_MODE=copy
 
 %post   
     pip install --root-user-action=ignore --no-cache-dir uv

@@ -1,18 +1,19 @@
+import os
+import shutil
 import subprocess
 import sys
 import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal, Union
+from typing import Any, Literal
 
 import yaml
 from lib.utils.helpers import get_hydra_output_dir
 from lib.utils.wandb import WandBConfig
 from loguru import logger
+from omegaconf import OmegaConf
 from submitit import AutoExecutor
 from submitit.helpers import CommandFunction
-from omegaconf import OmegaConf
-
 
 partition_name_to_time_limit_hrs = {
     "cpu-2h": 2,
@@ -103,17 +104,19 @@ class Job:
     @property
     def python_command(self) -> str:
         """Python command used by the job."""
-        return f"apptainer exec --nv {self.image} uv run python"
+        return f"apptainer exec --nv ${{GIT_DIR}}/{self.image} uv run python"
 
     def run(self) -> None:
         """Run the job on the cluster."""
+        # copy source code to output directory
+        exec_env = self.copy_project_files()
         command = [
             "python",
-            self.get_absolute_program_path(sys.argv[0]),
+            self.get_absolute_program_path(get_hydra_output_dir() / sys.argv[0]),
             *self.filter_args(sys.argv[1:]),
             "cfg/wandb=log",
         ]
-        function = CommandFunction(command)
+        function = CommandFunction(command, env=exec_env)
 
         executor = AutoExecutor(
             folder=get_hydra_output_dir(),
@@ -130,6 +133,24 @@ class Job:
         job = executor.submit(function)
         logger.info(f"Submitted job {job.job_id}")
 
+    def copy_project_files(self) -> dict[str, str]:
+        shutil.copytree(
+            Path.cwd(),
+            get_hydra_output_dir(),
+            ignore=shutil.ignore_patterns(
+                "__pycache__", "*.pyc", ".git", ".venv", "*_cache", "*.sif", "*.def", "outputs", "wandb"
+            ),
+            dirs_exist_ok=True,
+        )
+
+        if (wandb_config := WandBConfig.from_env()) is None:
+            raise RuntimeError("No WandB config found in environment.")
+        exec_env = os.environ.copy()
+        exec_env["PYTHONPATH"] = f"{get_hydra_output_dir()}:{exec_env['PYTHONPATH']}"
+        exec_env["WANDB_PROJECT"] = wandb_config.WANDB_PROJECT
+        exec_env["WANDB_ENTITY"] = wandb_config.WANDB_ENTITY
+        return exec_env
+
 
 @dataclass
 class SweepJob(Job):
@@ -137,7 +158,7 @@ class SweepJob(Job):
 
     sweep_id: str = "no_sweep_id"  # for collection of results
     num_workers: int = 2
-    parameters: dict[str, Union[list[Any], dict[Any]]] = field(default_factory=dict)
+    parameters: dict[str, list[Any] | dict[Any]] = field(default_factory=dict)
     metric_name: str = "loss"
     metric_goal: Literal["maximize", "minimize"] = "minimize"
     method: Literal["grid", "random", "bayes"] = "grid"
@@ -152,7 +173,6 @@ class SweepJob(Job):
 
             with Path.open(config_path, "w") as config_file:
                 yaml.dump(sweep_config, config_file)
-                print(sweep_config)
 
             try:
                 output = subprocess.run(
@@ -180,9 +200,13 @@ class SweepJob(Job):
 
     def run(self) -> None:
         """Run the sweep on the cluster."""
+        exec_env = self.copy_project_files()
         parameters = OmegaConf.to_container(self.parameters, resolve=True)
         metric = {"goal": self.metric_goal, "name": self.metric_name}
-        program, args = self.get_absolute_program_path(sys.argv[0]), self.filter_args(sys.argv[1:])
+        program, args = (
+            self.get_absolute_program_path(get_hydra_output_dir() / sys.argv[0]),
+            self.filter_args(sys.argv[1:]),
+        )
         command = [
             "${env}",
             "${interpreter}",
@@ -201,8 +225,7 @@ class SweepJob(Job):
         }
 
         sweep_id = self.register_sweep(sweep_config)
-
-        function = CommandFunction(["wandb", "agent"])
+        function = CommandFunction(["wandb", "agent"], env=exec_env)
         executor = AutoExecutor(
             folder=get_hydra_output_dir(),
             cluster=self.cluster,
