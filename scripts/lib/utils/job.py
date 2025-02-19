@@ -111,14 +111,16 @@ class Job:
         """Run the job on the cluster."""
         # copy source code to output directory
         exec_env = self.copy_project_files()
+        hydra_run_dir = "./outputs/runs/${now:%Y-%m-%d}/${now:%H-%M-%S-%f}"
+
         command = [
             "python",
             self.get_absolute_program_path(get_hydra_output_dir() / sys.argv[0]),
             *self.filter_args(sys.argv[1:]),
             "cfg/wandb=log",
+            f"hydra.run.dir={hydra_run_dir}",
         ]
         function = CommandFunction(command, env=exec_env)
-        hydra_run_dir = "./outputs/jobs/${now:%Y-%m-%d}/${now:%H-%M-%S-%f}"
 
         executor = AutoExecutor(
             folder=get_hydra_output_dir(),
