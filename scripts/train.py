@@ -4,10 +4,7 @@ import wandb
 from conf.base_conf import BaseConfig, configure_main
 from lib.utils.run import run
 from loguru import logger
-from hydra_zen import store
-from hydra.conf import HydraConf, RunDir
-
-from scripts.lib.utils.log import log_dict
+from lib.utils.log import log_dict
 
 
 @configure_main(extra_defaults=[])
@@ -34,8 +31,4 @@ def train(
 
 
 if __name__ == "__main__":
-    store(HydraConf(
-        run=RunDir(dir="./outputs/${now:%Y-%m-%d}/${now:%H-%M-%S-%f}")
-    ))
-    store.add_to_hydra_store()
     run(train)

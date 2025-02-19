@@ -16,6 +16,7 @@ from submitit import AutoExecutor
 from submitit.helpers import CommandFunction
 
 partition_name_to_time_limit_hrs = {
+    "gpu-test": 0.25,
     "cpu-2h": 2,
     "cpu-5h": 5,
     "cpu-2d": 48,
@@ -48,7 +49,7 @@ class SlurmConfig:
         params = {}
         if self.partition:
             params["slurm_partition"] = self.partition
-            params["timeout_min"] = partition_name_to_time_limit_hrs[self.partition] * MINS_IN_H
+            params["timeout_min"] = int(partition_name_to_time_limit_hrs[self.partition] * MINS_IN_H)
 
         if self.cpus_per_task:
             params["cpus_per_task"] = self.cpus_per_task
@@ -146,7 +147,7 @@ class Job:
         if (wandb_config := WandBConfig.from_env()) is None:
             raise RuntimeError("No WandB config found in environment.")
         exec_env = os.environ.copy()
-        exec_env["PYTHONPATH"] = f"{get_hydra_output_dir()}:{exec_env['PYTHONPATH']}"
+        exec_env["PYTHONPATH"] = f"{get_hydra_output_dir()}:{exec_env.get('PYTHONPATH', '')}"
         exec_env["WANDB_PROJECT"] = wandb_config.WANDB_PROJECT
         exec_env["WANDB_ENTITY"] = wandb_config.WANDB_ENTITY
         return exec_env
@@ -207,12 +208,14 @@ class SweepJob(Job):
             self.get_absolute_program_path(get_hydra_output_dir() / sys.argv[0]),
             self.filter_args(sys.argv[1:]),
         )
+        hydra_run_dir = "./outputs/${now:%Y-%m-%d}/" + self.sweep_id + "/${now:%H-%M-%S-%f}"
         command = [
             "${env}",
             "${interpreter}",
             "${program}",
             *args,
             "cfg/wandb=log",
+            f"hydra.run.dir={hydra_run_dir}",
             "${args_no_hyphens}",
         ]
 
