@@ -2,7 +2,6 @@ from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Literal
 import socket
-
 from hydra_zen import builds, store
 
 from lib.utils.wandb import WandBRun
@@ -11,9 +10,9 @@ from lib.utils.job import Job, SweepJob, SlurmConfig
 
 @dataclass
 class RuntimeInfo:
-    #device: str = field(default_factory=lambda: "cuda" if th.cuda.is_available() else "cpu")
+    # device: str = field(default_factory=lambda: "cuda" if th.cuda.is_available() else "cpu")
     out_dir: Path | None = None
-    #n_gpu: int = field(default_factory=th.cuda.device_count)
+    # n_gpu: int = field(default_factory=th.cuda.device_count)
     node_hostname: str = field(default_factory=socket.gethostname)
 
 
@@ -28,11 +27,11 @@ class BaseConfig:
 
 BaseSlurmConfig = builds(
     SlurmConfig,
-    partition="cpu-2h",
+    partition="gpu-5h",
     cpus_per_task=2,
+    gpus_per_task=1,
     memory_gb=8,
     nodes=1,
-    tasks_per_node=1,
     exclude="head001",
     constraint="",
 )
@@ -52,12 +51,7 @@ BaseSweepConfig = builds(
     num_workers=2,
     sweep_id="new_md17_exp",
     metric_name="loss",
-    parameters={
-        "bar": 
-        {
-            'values': [42, 43, 44]
-        }
-    },
+    parameters={"bar": {"values": [42, 43, 44]}},
     method="grid",
     builds_bases=(BaseJobConfig,),
 )

@@ -55,7 +55,7 @@ class SlurmConfig:
             params["cpus_per_task"] = self.cpus_per_task
 
         if self.gpus_per_task:
-            params["slurm_gpus_per_task"] = self.gpus_per_task
+            params["slurm_gpus_per_node"] = self.gpus_per_task
 
         if self.memory_gb:
             params["mem_gb"] = self.memory_gb
@@ -118,6 +118,7 @@ class Job:
             "cfg/wandb=log",
         ]
         function = CommandFunction(command, env=exec_env)
+        hydra_run_dir = "./outputs/jobs/${now:%Y-%m-%d}/${now:%H-%M-%S-%f}"
 
         executor = AutoExecutor(
             folder=get_hydra_output_dir(),
@@ -208,7 +209,7 @@ class SweepJob(Job):
             self.get_absolute_program_path(get_hydra_output_dir() / sys.argv[0]),
             self.filter_args(sys.argv[1:]),
         )
-        hydra_run_dir = "./outputs/${now:%Y-%m-%d}/" + self.sweep_id + "/${now:%H-%M-%S-%f}"
+        hydra_run_dir = "./outputs/sweeps/" + self.sweep_id + "/${now:%H-%M-%S-%f}"
         command = [
             "${env}",
             "${interpreter}",
