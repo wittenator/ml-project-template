@@ -10,6 +10,7 @@ From: python:3.12-slim
     export DEBIAN_FRONTEND=noninteractive
     export PYTHONPATH=./src:$PYTHONPATH
     export UV_LINK_MODE=copy
+    export UV_PROJECT_ENVIRONMENT="$(dirname "$APPTAINER_CONTAINER")/.venv"
 
 %post   
     apt update && apt install openssh-client -y

@@ -27,7 +27,7 @@ class BaseConfig:
 
 BaseSlurmConfig = builds(
     SlurmConfig,
-    partition="gpu",
+    partition="gpu-2h",
     cpus_per_task=2,
     gpus_per_task=1,
     memory_gb=8,
