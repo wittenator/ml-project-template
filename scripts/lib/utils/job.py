@@ -16,6 +16,7 @@ from submitit import AutoExecutor
 from submitit.helpers import CommandFunction
 
 partition_name_to_time_limit_hrs = {
+    "gpu": 0.5,
     "gpu-test": 0.25,
     "cpu-2h": 2,
     "cpu-5h": 5,
@@ -105,7 +106,7 @@ class Job:
     @property
     def python_command(self) -> str:
         """Python command used by the job."""
-        return f"apptainer exec --nv ${{GIT_DIR}}/{self.image} uv run python"
+        return f"apptainer exec --nv ${{GIT_DIR}}/{self.image} /uv/uv run python"
 
     def run(self) -> None:
         """Run the job on the cluster."""

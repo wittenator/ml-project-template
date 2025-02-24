@@ -1,10 +1,11 @@
-#! /usr/bin/env -S apptainer exec container.sif uv run python
+#! /usr/bin/env -S apptainer exec container.sif /uv/uv run python
 
 import wandb
 from conf.base_conf import BaseConfig, configure_main
 from lib.utils.run import run
 from loguru import logger
 from lib.utils.log import log_dict
+import subprocess
 
 
 @configure_main(extra_defaults=[])
@@ -20,6 +21,9 @@ def train(
         logger.info("Running main function.")
         logger.info(f"Config: bar={bar}, foo={foo}, jup={jup}")
         logger.info(f"BaseConfig: {cfg}")
+
+        # print if cuda is available without pytorch
+        subprocess.check_output(['nvidia-smi'])
 
         # log bar to wandb
         if cfg.wandb:
