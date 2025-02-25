@@ -16,6 +16,7 @@ from submitit import AutoExecutor
 from submitit.helpers import CommandFunction
 
 partition_name_to_time_limit_hrs = {
+    "gpu": 0.5,
     "gpu-test": 0.25,
     "cpu-2h": 2,
     "cpu-5h": 5,
@@ -34,7 +35,7 @@ MINS_IN_H = 60
 class SlurmConfig:
     """SLURM resource configuration."""
 
-    partition: str = "gpu-2h"
+    partition: str = "gpu"
     cpus_per_task: int | None = 3
     gpus_per_task: int | None = None
     memory_gb: int | None = None
