@@ -25,43 +25,32 @@ This is a template project for ML experimentation using wandb, hydra-zen, submit
 
 ## Setup
 
+### Step 0: Set up passwordless SSH
+First you need to set up passwordless SSH to the node from which you want to run the SLURM commands from. This is usually the headnode of the SLURM cluster since it has SLURM and most often passwordless SHH already activated.
+
 ### Step 1: Env Vars
 To be able to run Slurm from within Apptainer, you first have to add the following lines to your `.zshrc`/`.bashrc` file:
 
 ```bash
-export APPTAINER_BIND=/opt/slurm-23.2,/opt/slurm,/etc/slurm,/etc/munge,/var/log/munge,/var/run/munge,/lib/x86_64-linux-gnu
-export APPTAINERENV_APPEND_PATH=/opt/slurm/bin:/opt/slurm/sbin
+export COMMAND_EXECUTION_NODE= <hostname where you want to run the slurm commands from, usually the headnose >
 ```
+If you don't set this variable, $HOSTNAME will be used as a hostname.
 
 ### Step 2 (optional): Setup Aliases
 The following aliases for interacting with Apptainer are recommended:
 
 ```bash
 rebuild='apptainer build --nv container.sif container.def'
-add-dep='apptainer run --nv container.sif poetry --no-cache add --lock'
-remove-dep='apptainer run --nv container.sif poetry --no-cache remove --lock'
+add-dep='apptainer run --nv container.sif uv add --locked'
+remove-dep='apptainer run --nv container.sif uv remove --locked'
 ```
 
-### Step 3: Change container path
-In the first line of each script in the ```scripts``` directory, change file path the first line to the container's absolute path:
-
-```python
-./scripts/train.py                  edit this path \/
-#! /usr/bin/env -S apptainer exec /home/maxi/TEMP/ml-project-template/container.sif python 
-
-from loguru import logger
-
-from conf.base_conf import configure_main, BaseConfig
-from lib.utils.run import run
-
-...
-```
-### Step 4: Configure WandB logging
+### Step 3: Configure WandB logging
 Logging to WandB is optional for running local jobs but mandatory for jobs submitted to the cluster.
 
 WandB is enabled by specifying an API key, the project and entity. Rename `example.env` to `.env` file in the root of the repository. Fill in your information.
 
-### Step 5: Build the container
+### Step 4: Build the container
 Build the container using the `rebuild` alias above - if there are any errors try deleting the poetry.lock file and repeat.
 
 ## Run
@@ -115,7 +104,7 @@ You can also add config groups and all other hydra-zen functionality.
 
 
 ```python
-#! /usr/bin/env -S apptainer exec /home/maxi/TEMP/ml-project-template/container.sif python
+#! /usr/bin/env -S apptainer exec container.sif uv run python
 
 from loguru import logger
 
@@ -141,7 +130,7 @@ if __name__ == "__main__":
 
 ```
 Of course you can also add more scripts - to work they only need:
-1. The first line (`#! /usr/bin/env -S apptainer exec /home/maxi/TEMP/ml-project-template/container.sif python`)
+1. The first line (`#! /usr/bin/env -S apptainer exec container.sif uv run python`)
 2. The `configure_main` decorator over the main function
 3. Running the main function with the `run` function
 
