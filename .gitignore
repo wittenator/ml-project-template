@@ -165,3 +165,6 @@ data
 wandb
 
 **/*.sif
+
+.claude/settings.local.json
+scripts/tests/figures

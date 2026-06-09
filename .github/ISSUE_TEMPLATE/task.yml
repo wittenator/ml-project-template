@@ -1,0 +1,94 @@
+name: Task
+description: Describe a task for this ML project.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe a task. Please fill everything out carefully to keep experiments reproducible.
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A detailed description about what this task is about. What needs to be accomplished?
+      placeholder: Run the new loss ablation and produce Figure 3 (top row) for the report.
+    validations:
+      required: true
+  - type: dropdown
+    id: tasktype
+    attributes:
+      label: Task Type
+      description: What kind of task is this?
+      options:
+        - Experiment
+        - Ablation
+        - Dataset/Preprocessing
+        - Model/Method
+        - Evaluation/Metrics
+        - Writing/Editing
+        - Infrastructure/Tooling
+        - Reproducibility/Packaging
+      default: 0
+    validations:
+      required: true
+  - type: textarea
+    id: workingplan
+    attributes:
+      label: Proposed Working Plan
+      description: A step-by-step plan about what has to be done.
+      value: |
+        1.
+        2.
+        3.
+            1.
+            2.
+        ...
+    validations:
+      required: true
+  - type: textarea
+    id: acceptancecriteria
+    attributes:
+      label: Acceptance Criteria
+      description: The criteria that determines that this task is finished. How can the result be verified?
+      placeholder: Metric X improves by at least 1.0 on dataset Y with seeds {0,1,2}; Figure 3 updated in the draft.
+    validations:
+      required: true
+  - type: textarea
+    id: reproducibility
+    attributes:
+      label: Reproducibility / Artifacts
+      description: Link configs, commands, and output artifacts to reproduce the result.
+      value: |
+        - Config name(s):
+        - Command(s):
+        - Dataset/version:
+        - Seeds:
+        - Output path (e.g., outputs/YYYY-MM-DD/...):
+        - W&B run or log link:
+    validations:
+      required: true
+  - type: dropdown
+    id: compute
+    attributes:
+      label: Compute Estimate
+      description: Rough compute needs for this task.
+      options:
+        - CPU only
+        - 1x GPU (<=4h)
+        - 1x GPU (4-12h)
+        - Multi-GPU
+        - Cluster job
+      default: 1
+    validations:
+      required: true
+  - type: textarea
+    id: additionalcomments
+    attributes:
+      label: Additional Comments
+      description: Optional notes or dependencies.
+      value: |
+        #### Reproducibility checklist
+
+        - Config committed or linked
+        - Seeds recorded
+        - Outputs stored under outputs/YYYY-MM-DD/...
+        - Metrics summarized in notes or README

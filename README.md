@@ -54,44 +54,55 @@ WandB is enabled by specifying an API key, the project and entity. Rename `examp
 Build the container using the `rebuild` alias above - if there are any errors try deleting the poetry.lock file and repeat.
 
 ## Run
-Run the script with 
+
+### Local (dev container or host)
+
+Without Apptainer, launch scripts directly with `uv run`:
 ```bash
-./scripts/train.py
+uv run python scripts/train.py
 ```
-This will work with any path as long as the script has the first line pointing to the apptainer above. Just note that Hydra will generate the output dir relative to the current working directory, so better be consistent.
-Hydra should automatically generate a `config.yaml` in `./outputs/<date>/<time>/.hydra`. 
+Hydra writes run artifacts under `outputs/<date>/<run_id>/.hydra` relative to the current working directory (`<run_id>` is the SLURM/local job id on the cluster, or a short uuid otherwise).
 
 To log to WandB, add `cfg/wandb=log`:
-
 ```bash
-./scripts/train.py cfg/wandb=log
+uv run python scripts/train.py cfg/wandb=log
 ```
 
 In order to use WandB in offline mode, add `cfg.wandb.mode=offline`:
-
 ```bash
-./scripts/train.py cfg/wandb=log cfg.wandb.mode=offline
+uv run python scripts/train.py cfg/wandb=log cfg.wandb.mode=offline
 ```
+
+> The shebang form `./scripts/train.py ...` expects Apptainer and is intended for Slurm/cluster deployments.
+
+### Cluster profiles
+
+Per-cluster settings (Slurm partitions, apptainer binds, node-local scratch, resource defaults, wall-clock limits) live as pluggable profiles under `scripts/conf/clusters/`. Select one with `cfg/cluster=<name>`:
+
+* `local` — submitit's local executor (host subprocesses, no Slurm/Apptainer). The default, handy for smoke-testing the submission path. GPUs are auto-detected and sliced across sweep workers.
+* `example` — a template Slurm profile. **Copy this to `scripts/conf/clusters/<your-cluster>.py`**, edit the binds/partitions/time limits, register it in `scripts/conf/clusters/__init__.py`, and use it via `cfg/cluster=<your-cluster>`.
+
+Per-job resource overrides go on `cfg.job.slurm_config.*` (e.g. `cfg.job.slurm_config.gpus_per_task=4`); anything left unset falls back to the selected profile.
 
 ### Single Job
 
-To run the command as a job in the cluster, run
+To run the command as a job on the cluster, run
 
 ```bash
-./scripts/train.py cfg/job=run
+./scripts/train.py cfg/job=run cfg/cluster=<your-cluster>
 ```
 
-This will automatically add WandB logging for you. See `src/configs/runs/base.py` to configure the job to your needs.
+This will automatically add WandB logging for you. See `scripts/conf/base_conf.py` to configure the job to your needs.
 
 ### Distributed Sweep
 
-Run a sweep over two seeds using multiple nodes:
+Run a sweep using multiple workers:
 
 ```bash
-./scripts/train.py cfg/job=sweep
+./scripts/train.py cfg/job=sweep cfg/cluster=<your-cluster>
 ```
 
-This will automatically add WandB logging for you. See `src/configs/runs/base.py` to configure the sweep to your needs.
+This will automatically add WandB logging for you. See `scripts/conf/base_conf.py` to configure the sweep to your needs. To smoke-test the sweep locally first, swap in `cfg/cluster=local`.
 
 ## Edit main function
 
@@ -104,7 +115,7 @@ You can also add config groups and all other hydra-zen functionality.
 
 
 ```python
-#! /usr/bin/env -S apptainer exec container.sif uv run python
+#! /usr/bin/env -S apptainer exec --nv container.sif uv run --no-dev python
 
 from loguru import logger
 
@@ -112,7 +123,7 @@ from conf.base_conf import configure_main, BaseConfig
 from lib.utils.run import run
 
 
-@configure_main
+@configure_main()
 def train(
     cfg: BaseConfig,  # you must keep this argument <----
     bar: int = 42,
@@ -130,9 +141,11 @@ if __name__ == "__main__":
 
 ```
 Of course you can also add more scripts - to work they only need:
-1. The first line (`#! /usr/bin/env -S apptainer exec container.sif uv run python`)
-2. The `configure_main` decorator over the main function
+1. The first line (`#! /usr/bin/env -S apptainer exec --nv container.sif uv run --no-dev python`)
+2. The `configure_main()` decorator over the main function
 3. Running the main function with the `run` function
+
+The store name is derived from the module name, so multiple entry points (e.g. `train.py`, `sample.py`) can register in the same process without clashing.
 
 
 ## Edit dependencies

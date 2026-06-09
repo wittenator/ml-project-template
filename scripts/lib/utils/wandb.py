@@ -46,10 +46,16 @@ class WandBRun:
         **kwargs,
     ) -> None:
         if (config := WandBConfig.from_env()) is not None:
-            entity = config.WANDB_ENTITY
-            project = config.WANDB_PROJECT
+            entity = entity or config.WANDB_ENTITY
+            project = project or config.WANDB_PROJECT
 
-        run = wandb.init(entity=entity, project=project, **kwargs, config={})
+        run = wandb.init(
+            entity=entity,
+            project=project,
+            **kwargs,
+            config={},
+            settings=wandb.Settings(init_timeout=300),
+        )
 
         if not isinstance(run, Run):
             raise TypeError("Could not initalize WandB run.")
