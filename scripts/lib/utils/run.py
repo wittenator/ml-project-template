@@ -1,9 +1,10 @@
+import os
 import sys
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from hydra_zen import MISSING, instantiate, store, zen
-from lib.utils.helpers import get_hydra_output_dir, seed_everything
+from lib.utils.helpers import get_hydra_output_dir, redirect_caches, seed_everything
 from loguru import logger
 from omegaconf import DictConfig, OmegaConf
 
@@ -33,6 +34,11 @@ def pre_call(root_config: DictConfig) -> None:
     seed = config.get("seed", MISSING)
     job = config.get("job", MISSING)
 
+    # Keep wandb's cache/config off $HOME for every process that touches wandb —
+    # including the dispatcher below, whose `wandb.sweep` call runs before any
+    # worker exists.
+    redirect_caches()
+
     if job is not MISSING and job is not None:
         logger.debug(f"Job detected, running job on cluster: {job}.")
         return
@@ -49,6 +55,12 @@ def pre_call(root_config: DictConfig) -> None:
 
     output_path = get_hydra_output_dir()
     logger.debug(f"Saving outputs in {output_path}")
+
+    # Colocate wandb's local run files with the hydra output dir (weights,
+    # configs, samples). Without this wandb defaults to `<cwd>/wandb`, which
+    # diverges from where everything else is written. wandb creates a `wandb/`
+    # subdir under WANDB_DIR, so the run lands at `<output_path>/wandb/`.
+    os.environ["WANDB_DIR"] = str(output_path)
 
     if (wandb_config := config.get("wandb")) is not None:
         wandb_run: WandBRun = instantiate(wandb_config)

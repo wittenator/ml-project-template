@@ -252,6 +252,11 @@ class Job:
         exec_env["WANDB_ENTITY"] = wandb_config.WANDB_ENTITY
         # deactivate tqdm on jobs to save on disk bandwidth
         exec_env["TQDM_DISABLE"] = "1"
+        # Route caches (wandb, etc.) to node-local scratch instead of $HOME.
+        # `/cache` exists thanks to the apptainer `$LOCAL_JOB_DIR:/cache` bind;
+        # there's no such mount under cluster=local, so leave CACHE_DIR alone.
+        if self.cluster != "local":
+            exec_env.setdefault("CACHE_DIR", "/cache")
         return exec_env
 
 

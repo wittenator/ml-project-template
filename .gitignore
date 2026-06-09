@@ -168,3 +168,4 @@ wandb
 
 .claude/settings.local.json
 scripts/tests/figures
+.cache
