@@ -46,10 +46,24 @@ class WandBRun:
         **kwargs,
     ) -> None:
         if (config := WandBConfig.from_env()) is not None:
-            entity = config.WANDB_ENTITY
-            project = config.WANDB_PROJECT
+            entity = entity or config.WANDB_ENTITY
+            project = project or config.WANDB_PROJECT
 
-        run = wandb.init(entity=entity, project=project, **kwargs, config={})
+        # Reuse an already-active run instead of starting a second one. `cfg.wandb`
+        # is both initialized in `run.py`'s pre_call and instantiated again as a
+        # field of BaseConfig when the main function's config is built; without
+        # this guard that produces two separate wandb runs per job (config logged
+        # to one, metrics to the other).
+        if wandb.run is not None:
+            run = wandb.run
+        else:
+            run = wandb.init(
+                entity=entity,
+                project=project,
+                **kwargs,
+                config={},
+                settings=wandb.Settings(init_timeout=300),
+            )
 
         if not isinstance(run, Run):
             raise TypeError("Could not initalize WandB run.")

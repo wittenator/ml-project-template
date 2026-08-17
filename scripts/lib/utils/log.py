@@ -11,11 +11,14 @@ def log_dict(d, step, log_wandb=False, key_suffix="") -> None:
     logger.info(log_str(log_dict, step))
     if log_wandb:
         # seperate all metrics that are scalar into a dict
-        scalar_dict = {k: 1 for k, v in log_dict.items() if isinstance(v, int | float)}
+        scalar_dict = {k: v for k, v in log_dict.items() if isinstance(v, int | float)}
         wandb.log(scalar_dict, step=step)
 
         # plot all multidimensional metrics as histograms
         multidim_keys = set(log_dict.keys()) - set(scalar_dict.keys())
         for k in multidim_keys:
             v = log_dict[k]
-            wandb.log({k: wandb.Histogram(v)}, step=step)
+            try:
+                wandb.log({k: wandb.Histogram(v)}, step=step)
+            except Exception as e:
+                logger.error(f"Failed to log histogram for {k}: {e}")
